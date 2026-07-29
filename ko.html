@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>자동 정사영 변환 방식 검토 및 개선 요청</title>
+  <style>
+    :root {
+      --navy:#10243e; --blue:#1769aa; --cyan:#00a6c7; --ink:#202a39;
+      --muted:#657184; --line:#d9e1eb; --paper:#f4f7fb; --white:#fff;
+      --green:#14875d; --green-bg:#eaf8f2; --red:#c63f4b; --red-bg:#fff0f1;
+      --amber:#a66500; --amber-bg:#fff7df;
+    }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body {
+      margin:0; color:var(--ink); background:var(--paper);
+      font-family:"Pretendard","Noto Sans KR","Malgun Gothic",sans-serif;
+      line-height:1.65;
+    }
+    .wrap { width:min(1140px, calc(100% - 40px)); margin:0 auto; }
+    header {
+      padding:62px 0 68px; color:white;
+      background:
+        radial-gradient(circle at 80% 15%, rgba(0,166,199,.3), transparent 31%),
+        linear-gradient(130deg,#09192d,#154d79);
+    }
+    .kicker { color:#79dff0; font-size:13px; font-weight:800; letter-spacing:.14em; }
+    h1 { max-width:900px; margin:9px 0 18px; font-size:clamp(34px,5.5vw,58px); line-height:1.14; }
+    .subtitle { max-width:820px; margin:0; color:#d8e8f6; font-size:19px; }
+    .meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:24px; }
+    .meta span { padding:5px 10px; border:1px solid rgba(255,255,255,.25); border-radius:999px; color:#dcecff; font-size:12px; }
+    main { padding:52px 0 80px; }
+    section { margin:0 0 56px; }
+    h2 { margin:0 0 20px; color:var(--navy); font-size:28px; line-height:1.3; }
+    h3 { margin:0 0 8px; color:var(--navy); }
+    p { margin:7px 0; }
+    code { color:#075985; font-family:Consolas,monospace; }
+    .card {
+      padding:22px; border:1px solid var(--line); border-radius:16px;
+      background:var(--white); box-shadow:0 8px 26px rgba(24,51,81,.055);
+    }
+    .summary { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; counter-reset:item; }
+    .summary .card { position:relative; min-height:205px; padding-top:54px; }
+    .summary .card::before {
+      counter-increment:item; content:counter(item);
+      position:absolute; top:18px; left:20px; width:28px; height:28px;
+      display:grid; place-items:center; border-radius:9px; color:white; background:var(--blue); font-weight:800;
+    }
+    .summary strong { display:block; margin-bottom:8px; color:var(--navy); font-size:17px; line-height:1.35; }
+    .compare { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    .status { display:inline-block; margin-bottom:12px; padding:4px 9px; border-radius:999px; font-size:12px; font-weight:800; }
+    .as-is { color:var(--green); background:var(--green-bg); }
+    .current { color:var(--red); background:var(--red-bg); }
+    pre {
+      margin:15px 0 0; padding:18px; overflow:auto; border-radius:12px;
+      color:#dce9f9; background:#101d30; font:14px/1.7 Consolas,monospace;
+    }
+    .zero { color:#67e8f9; font-weight:800; }
+    .nonzero { color:#fda4af; font-weight:800; }
+    .diagram {
+      display:grid; grid-template-columns:1fr auto 1fr auto 1fr;
+      align-items:center; gap:12px;
+    }
+    .step { min-height:135px; display:flex; flex-direction:column; justify-content:center; text-align:center; }
+    .arrow { color:var(--blue); font-size:30px; font-weight:900; }
+    .evidence { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    figure { margin:0; overflow:hidden; }
+    figure img { display:block; width:100%; background:#111827; }
+    figcaption { padding:14px 18px 18px; color:var(--muted); background:white; font-size:14px; }
+    .callout { padding:20px 22px; border-left:5px solid var(--blue); border-radius:9px; background:#eaf4fc; }
+    .problem { border-left-color:var(--red); background:var(--red-bg); }
+    .decision { border-left-color:#e89b14; background:var(--amber-bg); }
+    .reqs { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+    ul,ol { margin:9px 0 0; padding-left:22px; }
+    li + li { margin-top:7px; }
+    table { width:100%; border-collapse:collapse; border-radius:14px; overflow:hidden; background:white; }
+    th,td { padding:13px 15px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { color:var(--navy); background:#e8f0fa; }
+    .yes { color:var(--green); font-weight:800; }
+    .no { color:var(--red); font-weight:800; }
+    .recommend {
+      padding:28px; border:2px solid #1e81ba; border-radius:18px;
+      background:linear-gradient(135deg,#fff,#eef9fc);
+    }
+    .recommend h3 { font-size:23px; }
+    .acceptance { counter-reset:check; display:grid; gap:12px; }
+    .acceptance div {
+      position:relative; padding:16px 18px 16px 52px; border:1px solid var(--line); border-radius:12px; background:white;
+    }
+    .acceptance div::before {
+      counter-increment:check; content:"✓";
+      position:absolute; left:17px; top:15px; width:25px; height:25px; display:grid; place-items:center;
+      border-radius:50%; color:white; background:var(--green); font-weight:900;
+    }
+    .lang { position:fixed; right:18px; top:18px; z-index:3; padding:8px 12px; border-radius:999px; color:white; background:rgba(10,25,45,.82); text-decoration:none; font-weight:700; }
+    footer { padding:28px 0; color:#93a3b8; background:#0e1c2f; font-size:13px; }
+    @media(max-width:900px) {
+      .summary { grid-template-columns:1fr 1fr; }
+      .compare,.evidence,.reqs { grid-template-columns:1fr; }
+      .diagram { grid-template-columns:1fr; }
+      .arrow { transform:rotate(90deg); justify-self:center; }
+    }
+    @media(max-width:560px) { .summary { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <a class="lang" href="index.html">Languages</a>
+  <header>
+    <div class="wrap">
+      <div class="kicker">ROADVISION CAMERA CALIBRATION</div>
+      <h1>자동 정사영 변환 방식<br>검토 및 개선 요청</h1>
+      <p class="subtitle">기존 4개 정사영 파라미터 방식과 현재 자동 교정 방식의 차이를 확인하고, 차량 회전 왜곡을 방지하기 위한 변환영역 제약과 UI 개선 방향을 제안한다.</p>
+      <div class="meta"><span>검토 대상: Front Camera BEV</span><span>기준 출력: 1224 × 1024</span><span>핵심 이슈: 6-parameter vs 8-parameter</span></div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section>
+      <h2>1. 핵심 요약</h2>
+      <div class="summary">
+        <div class="card"><strong>기존 입력은 4개</strong><p><code>yaw, pitch, width, length</code>를 사용한다.</p></div>
+        <div class="card"><strong>기존 행렬은 6개 값 계산</strong><p>수평 사다리꼴 제약으로 <code>h21</code>, <code>h31</code>이 0이다.</p></div>
+        <div class="card"><strong>현재 자동 방식은 8개 행렬 값 계산</strong><p>사용자가 선택한 임의 사각형을 그대로 사용한다.</p></div>
+        <div class="card"><strong>자동 방식도 기존 구조 유지 필요</strong><p>변환영역의 위·아래 변을 x축과 평행하게 제한한다.</p></div>
+        <div class="card"><strong>사다리꼴 유지 UI 필요</strong><p>네 점을 이동할 때 수평 제약을 어떻게 적용할지 결정해야 한다.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. 교정 기준</h2>
+      <div class="evidence">
+        <figure class="card">
+          <img src="calibration_alignment_standard.png" alt="교정판과 차량의 정렬 기준">
+          <figcaption>교정판과 차량을 평행하게 배치하고, 교정판 중심과 차량 중심선을 일치시키는 것이 교정의 전제 조건이다.</figcaption>
+        </figure>
+        <div class="card">
+          <h3>정상적인 BEV의 기준축</h3>
+          <pre>차량 진행축
+    =
+교정판 세로축
+    =
+BEV 영상 세로축</pre>
+          <p>차량과 교정판을 기준에 맞게 설치한 상태라면 변환 결과에서도 차량이 좌우로 회전하지 않고 세로축과 정렬되어야 한다.</p>
+          <ul>
+            <li>교정판 크기: 2 m × 2 m</li>
+            <li>카메라와 교정판 거리: 5 m</li>
+            <li>변환 결과 교정판: 240 px × 240 px</li>
+            <li>교정판 위치: ROI 하단 중앙</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. 기존 정사영 변환 방식</h2>
+      <div class="diagram">
+        <div class="card step"><h3>4개 입력</h3><p><code>yaw</code><br><code>pitch</code><br><code>width</code><br><code>length</code></p></div>
+        <div class="arrow">→</div>
+        <div class="card step"><h3>수평 사다리꼴</h3><p>윗변의 y값 동일<br>아랫변의 y값 동일</p></div>
+        <div class="arrow">→</div>
+        <div class="card step"><h3>직사각형 BEV</h3><p>기존 역변환 및<br>파라미터 구조와 호환</p></div>
+      </div>
+      <div class="compare" style="margin-top:20px">
+        <div class="card">
+          <span class="status as-is">기존 행렬 구조</span>
+          <pre>H =
+[ h11  h12  h13 ]
+[  <span class="zero">0</span>   h22  h23 ]
+[  <span class="zero">0</span>   h32   1  ]</pre>
+        </div>
+        <div class="card">
+          <h3>4개 파라미터 방식의 장점</h3>
+          <ul>
+            <li>출력 영상의 불필요한 회전 왜곡 방지</li>
+            <li><code>yaw</code>, <code>pitch</code>, <code>width</code>, <code>length</code>의 의미가 직관적</li>
+            <li>기존 저장 구조 및 역변환 계산과 호환</li>
+            <li>현장 작업자가 결과를 이해하고 미세 조정하기 쉬움</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>4. 현재 자동 정사영 변환의 차이</h2>
+      <figure class="card">
+        <img src="auto_calibration_test.png" alt="자동 정사영 교정 테스트 화면">
+        <figcaption>사용자가 원본 영상에서 교정판 모서리 네 점을 직접 지정한 테스트 화면. 오른쪽 BEV 결과에서 차량이 왼쪽으로 회전해 보인다.</figcaption>
+      </figure>
+      <div class="compare" style="margin-top:20px">
+        <div class="card">
+          <span class="status current">현재 자동 행렬</span>
+          <pre>H =
+[-0.357376940  -0.905386407  1007.356816135]
+[<span class="nonzero">-0.020639505</span>  -1.892168148  1784.690500771]
+[<span class="nonzero">-0.000068654</span>  -0.001458344     1.000000000]</pre>
+        </div>
+        <div class="card">
+          <h3>원인</h3>
+          <p>현재 프로그램은 사용자가 지정한 네 점을 독립적인 임의 사각형으로 사용한다. 윗변과 아랫변의 y값이 서로 달라질 수 있으므로 일반적인 8-파라미터 원근변환 행렬이 생성된다.</p>
+          <p><code>h21</code>과 <code>h31</code>이 0이 아니며, 작은 선택 오차나 사각형의 기울기가 영상 전체의 회전 왜곡으로 반영될 수 있다.</p>
+        </div>
+      </div>
+      <div class="callout problem" style="margin-top:18px">
+        <strong>판정:</strong> 교정 기준대로 차량과 교정판을 평행하게 설치했음에도 BEV에서 차량 중심축이 세로축과 일치하지 않으므로, 현재 자동 교정 결과는 원하는 기존 정사영 결과와 호환되지 않는다.
+      </div>
+    </section>
+
+    <section>
+      <h2>5. 요구되는 자동 정사영 변환</h2>
+      <div class="recommend">
+        <h3>사용자가 네 점을 선택하더라도 실제 변환영역은 수평 사다리꼴을 유지해야 한다.</h3>
+        <p>윗변의 두 점은 동일한 y값을, 아랫변의 두 점도 동일한 y값을 갖도록 제한한다. 보정된 네 점으로 변환행렬을 다시 계산하면 기존과 동일한 6-파라미터 구조를 유지할 수 있다.</p>
+      </div>
+      <div class="compare" style="margin-top:20px">
+        <div class="card">
+          <span class="status as-is">요구 행렬</span>
+          <pre>[ h11  h12  h13 ]
+[  <span class="zero">0</span>   h22  h23 ]
+[  <span class="zero">0</span>   h32   1  ]</pre>
+        </div>
+        <div class="card">
+          <h3>검증 조건</h3>
+          <pre>abs(h21) &lt; epsilon
+abs(h31) &lt; epsilon</pre>
+          <p>부동소수점 계산 오차가 있으므로 정확한 0 비교 대신 허용오차를 사용한다. 행렬 계산 후 값을 강제로 0으로 바꾸지 말고, 입력 사다리꼴을 먼저 보정한 후 행렬을 계산해야 한다.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>6. 사다리꼴 유지 UI 방안</h2>
+      <table>
+        <thead><tr><th>방안</th><th>동작</th><th>장점</th><th>검토사항</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>A. 점 이동 연동</strong></td>
+            <td>위쪽 점 하나를 세로로 이동하면 반대쪽 위 점의 y값도 함께 변경한다. 아래쪽도 동일하다.</td>
+            <td class="yes">현재 4점 UI를 유지하면서 구현 가능</td>
+            <td>사용자가 연동 동작을 쉽게 인지할 수 있어야 함</td>
+          </tr>
+          <tr>
+            <td><strong>B. 선택 후 자동 보정</strong></td>
+            <td>사용자가 네 점을 자유롭게 선택하면 위·아래 점의 y값을 각각 평균하여 수평 사다리꼴로 변환한다.</td>
+            <td class="yes">초기 클릭 오차를 자동 흡수</td>
+            <td>원시 선택점과 보정점을 구분해 표시할 필요가 있음</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout decision" style="margin-top:18px">
+        <strong>권장안:</strong> B 방식으로 최초 네 점을 수평 사다리꼴로 자동 보정하고, 이후에는 A 방식으로 점 이동을 연동한다. 실제 변환에 사용하는 사다리꼴은 굵은 선으로 표시하고 사용자가 최초 선택한 점은 보조 표시로 구분한다.
+      </div>
+    </section>
+
+    <section>
+      <h2>7. 수정 요구사항</h2>
+      <div class="acceptance">
+        <div>윗변 두 점의 y좌표가 동일하고, 아랫변 두 점의 y좌표가 동일해야 한다.</div>
+        <div>점 이동 후에도 수평 사다리꼴 제약이 항상 유지되어야 한다.</div>
+        <div>계산된 행렬에서 <code>h21≈0</code>, <code>h31≈0</code>을 만족해야 한다.</div>
+        <div>기존 역변환을 통해 <code>yaw</code>, <code>pitch</code>, <code>width</code>, <code>length</code>를 생성할 수 있어야 한다.</div>
+        <div>BEV 결과에서 차량 중심축, 교정판 세로축, 영상 세로축이 일치해야 한다.</div>
+        <div>교정판은 ROI 하단 중앙에서 240 px × 240 px 정사각형으로 표시되어야 한다.</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>8. 당사 검토 의견 및 제안</h2>
+      <div class="callout">
+        <strong>일반적인 3×3 호모그래피 행렬이 8자유도를 가지며, 임의의 8자유도 행렬을 기존 4개 파라미터로 정확하게 환산하기 어렵다는 개발사의 설명에는 동의한다.</strong>
+        그러나 당사는 이를 해결하기 위해 기존 4개 정사영 파라미터를 없애고, 기존 소프트웨어에서 3×3 행렬을 직접 입력받도록 변경할 필요는 없다고 판단한다.
+      </div>
+
+      <div class="compare" style="margin-top:20px">
+        <div class="card">
+          <h3>4개 파라미터를 유지해야 하는 이유</h3>
+          <ul>
+            <li><code>yaw</code>, <code>pitch</code>, <code>width</code>, <code>length</code>의 의미가 직관적이다.</li>
+            <li>현장에서 교정값의 이상 여부를 확인하고 필요시 미세 조정할 수 있다.</li>
+            <li>기존 장비, 설정 파일, 역변환 계산 및 운영 절차와 호환된다.</li>
+            <li>차량과 교정판을 평행하게 배치하는 물리적 교정 조건을 반영한다.</li>
+            <li>불필요한 회전 자유도를 제한하여 차량의 회전 왜곡을 방지한다.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>행렬 직접 입력 방식의 우려사항</h3>
+          <ul>
+            <li>행렬 각 값의 의미와 정상 범위를 현장 작업자가 판단하기 어렵다.</li>
+            <li>사용자가 선택한 모서리점의 오차와 기울기가 결과 전체에 반영될 수 있다.</li>
+            <li>차량이 회전된 결과도 수학적으로 유효한 행렬로 처리될 수 있다.</li>
+            <li>기존 소프트웨어와 데이터 구조를 변경해야 한다.</li>
+            <li>차량별 교정값을 직관적으로 비교하고 관리하기 어렵다.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="recommend" style="margin-top:20px">
+        <h3>당사 제안</h3>
+        <p>현재의 괴리는 기존 4개 파라미터의 문제가 아니라, 자동 교정 프로그램이 기존 모델에 없는 자유도까지 포함한 임의의 8자유도 행렬을 생성하기 때문에 발생한다.</p>
+        <p>따라서 기존 프로그램을 전체 행렬 입력 방식으로 변경하기보다, 자동 교정 단계에서 사용자가 선택한 네 점을 수평 사다리꼴로 보정하고 기존 구조와 호환되는 변환행렬 및 4개 파라미터를 생성하는 방향으로 수정할 것을 제안한다.</p>
+        <pre>기존 시스템을 8자유도 행렬에 맞추는 것이 아니라,
+자동 교정 결과를 기존 4개 파라미터 교정 모델에 맞춘다.</pre>
+      </div>
+
+      <div class="callout decision" style="margin-top:20px">
+        <strong>최종 요청:</strong> 8자유도 행렬을 계산한 후 4개 파라미터로 근사하거나 수동으로 다시 조정하는 방식이 아니라, 최초 네 점 선택 단계부터 기존 모델의 제약조건을 적용하여 4개 파라미터와 호환되는 결과를 직접 생성해 주기 바란다.
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">RoadVision Front Camera Calibration · 자동 정사영 변환 개선 검토</div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>自动俯视变换方案审查及修改要求</title>
+  <link rel="stylesheet" href="review.css">
+</head>
+<body>
+  <a class="lang" href="index.html">Languages</a>
+  <header><div class="wrap">
+    <div class="kicker">ROADVISION CAMERA CALIBRATION</div>
+    <h1>自动俯视变换方案<br>审查及修改要求</h1>
+    <p class="subtitle">本文比较现有四参数透视变换与当前自动标定方法，并提出防止车辆出现非预期旋转所需的几何约束和 UI 修改方案。</p>
+    <div class="meta"><span>对象：前置摄像头 BEV</span><span>输出：1224 × 1024</span><span>核心：6 参数与 8 参数</span></div>
+  </div></header>
+  <main class="wrap">
+    <section><h2>1. 核心摘要</h2><div class="summary">
+      <div class="card"><strong>现有输入为四个参数</strong><p>使用 <code>yaw、pitch、width、length</code>。</p></div>
+      <div class="card"><strong>现有矩阵计算六个值</strong><p>水平梯形约束使 <code>h21</code>、<code>h31</code> 为 0。</p></div>
+      <div class="card"><strong>当前自动矩阵计算八个值</strong><p>用户选择的四点被直接作为任意四边形。</p></div>
+      <div class="card"><strong>必须保持现有矩阵结构</strong><p>上、下边必须与图像 x 轴平行。</p></div>
+      <div class="card"><strong>UI 必须保持梯形约束</strong><p>移动控制点时仍须保持水平约束。</p></div>
+    </div></section>
+
+    <section><h2>2. 标定基准</h2><div class="evidence">
+      <figure class="card"><img src="calibration_alignment_standard.png" alt="车辆与标定板对齐基准"><figcaption>车辆与标定板必须相互平行，且两者中心线必须重合。</figcaption></figure>
+      <div class="card"><h3>正常 BEV 的基准轴</h3><pre>车辆行驶方向轴
+      =
+标定板纵向轴
+      =
+BEV 图像纵轴</pre><p>当现场布置满足标定基准时，变换后的车辆不应左右旋转，而应与图像纵轴对齐。</p><ul><li>标定板：2 m × 2 m</li><li>摄像头至标定板：5 m</li><li>变换后标定板：240 px × 240 px</li><li>位置：ROI 下方中央</li></ul></div>
+    </div></section>
+
+    <section><h2>3. 现有透视变换方式</h2>
+      <div class="diagram"><div class="card step"><h3>四个输入</h3><p><code>yaw</code><br><code>pitch</code><br><code>width</code><br><code>length</code></p></div><div class="arrow">→</div><div class="card step"><h3>水平梯形</h3><p>上边两个 y 值相同<br>下边两个 y 值相同</p></div><div class="arrow">→</div><div class="card step"><h3>矩形 BEV</h3><p>兼容现有反算和参数模型</p></div></div>
+      <div class="compare" style="margin-top:20px"><div class="card"><span class="status as-is">现有矩阵结构</span><pre>H =
+[ h11  h12  h13 ]
+[  <span class="zero">0</span>   h22  h23 ]
+[  <span class="zero">0</span>   h32   1  ]</pre></div><div class="card"><h3>四参数方式的优点</h3><ul><li>防止输出图像出现不必要的旋转。</li><li>四个参数的意义直观。</li><li>兼容现有存储、反算与运营流程。</li><li>便于现场人员检查和微调。</li></ul></div></div>
+    </section>
+
+    <section><h2>4. 当前自动变换方式的差异</h2>
+      <figure class="card"><img src="auto_calibration_test.png" alt="自动标定测试画面"><figcaption>用户在原始图像中选择标定板四角。右侧 BEV 中车辆明显向左旋转。</figcaption></figure>
+      <div class="compare" style="margin-top:20px"><div class="card"><span class="status current">当前自动矩阵</span><pre>H =
+[-0.357376940  -0.905386407  1007.356816135]
+[<span class="nonzero">-0.020639505</span>  -1.892168148  1784.690500771]
+[<span class="nonzero">-0.000068654</span>  -0.001458344     1.000000000]</pre></div><div class="card"><h3>原因</h3><p>当前程序将用户选择的四点作为不受约束的四边形。上、下边 y 值可以不同，因此会生成完整的八自由度单应矩阵。</p><p><code>h21</code>、<code>h31</code> 非零，点选误差和四边形倾斜可能导致整个结果发生旋转。</p></div></div>
+      <div class="callout problem" style="margin-top:18px"><strong>判断：</strong>车辆与标定板已按基准平行布置，但 BEV 中车辆中心线仍未与纵轴重合，因此当前结果不符合所需的既有变换行为。</div>
+    </section>
+
+    <section><h2>5. 所需的自动变换</h2>
+      <div class="recommend"><h3>即使用户选择四个点，实际变换区域也必须保持为水平梯形。</h3><p>上方两点必须具有相同 y 值，下方两点也必须具有相同 y 值，并使用修正后的点重新计算矩阵。</p></div>
+      <div class="compare" style="margin-top:20px"><div class="card"><span class="status as-is">目标矩阵</span><pre>[ h11  h12  h13 ]
+[  <span class="zero">0</span>   h22  h23 ]
+[  <span class="zero">0</span>   h32   1  ]</pre></div><div class="card"><h3>验证条件</h3><pre>abs(h21) &lt; epsilon
+abs(h31) &lt; epsilon</pre><p>应使用数值容差。不要先计算一般矩阵后强制将两个值改成 0；应先修正输入梯形，再重新计算矩阵。</p></div></div>
+    </section>
+
+    <section><h2>6. 保持梯形的 UI 方案</h2>
+      <table><thead><tr><th>方案</th><th>动作</th><th>优点</th><th>注意事项</th></tr></thead><tbody>
+        <tr><td><strong>A. 控制点联动</strong></td><td>一个上方点纵向移动时，另一上方点的 y 值同步变化；下方点同理。</td><td class="yes">可保留当前四点 UI。</td><td>需让用户清楚识别联动行为。</td></tr>
+        <tr><td><strong>B. 选择后自动修正</strong></td><td>用户自由选择四点后，分别平均上方和下方点的 y 值，生成水平梯形。</td><td class="yes">可吸收初始点选误差。</td><td>应区分显示原始点与修正点。</td></tr>
+      </tbody></table>
+      <div class="callout decision" style="margin-top:18px"><strong>建议：</strong>首次选择使用 B，后续编辑使用 A。实际用于变换的梯形用粗线显示，原始点作为辅助参考。</div>
+    </section>
+
+    <section><h2>7. 修改要求</h2><div class="acceptance">
+      <div>上方两点的 y 坐标必须相同，下方两点的 y 坐标也必须相同。</div><div>每次移动点后都必须保持水平梯形约束。</div><div>矩阵必须满足 <code>h21≈0</code>、<code>h31≈0</code>。</div><div>现有反算必须能够生成 <code>yaw、pitch、width、length</code>。</div><div>车辆中心线、标定板纵轴和 BEV 纵轴必须重合。</div><div>标定板应在 ROI 下方中央显示为 240 px × 240 px 正方形。</div>
+    </div></section>
+
+    <section><h2>8. 我方意见与建议</h2>
+      <div class="callout"><strong>我们认同一般 3×3 单应矩阵具有八个自由度，且无法准确转换成现有四参数。</strong>但我们认为没有必要因此取消四参数并要求现有软件直接输入 3×3 矩阵。</div>
+      <div class="compare" style="margin-top:20px"><div class="card"><h3>应保留四参数的原因</h3><ul><li>参数含义直观，便于现场人员理解。</li><li>可判断异常值并进行微调。</li><li>兼容现有设备、配置、反算及运营流程。</li><li>反映车辆与标定板平行的物理条件。</li><li>限制不必要的旋转自由度。</li></ul></div><div class="card"><h3>直接输入矩阵的风险</h3><ul><li>现场人员难以判断各值的意义和正常范围。</li><li>点选误差会影响整个变换结果。</li><li>车辆明显旋转时矩阵仍可能在数学上有效。</li><li>需要修改现有软件和数据结构。</li><li>难以直观比较和管理不同车辆的标定值。</li></ul></div></div>
+      <div class="recommend" style="margin-top:20px"><h3>我方建议</h3><p>当前差异并非四参数模型本身的问题，而是自动标定生成了现有模型不需要的八自由度矩阵。</p><p>不应让现有系统适配八自由度矩阵，而应让自动标定结果适配现有四参数模型。</p><pre>不要让现有系统适配 8-DOF 矩阵。
+应让自动标定结果适配现有四参数模型。</pre></div>
+      <div class="callout decision" style="margin-top:20px"><strong>最终要求：</strong>不要先计算八自由度矩阵再近似转换四参数，也不要要求人工重新调整。应从首次四点选择开始应用现有模型约束，直接生成兼容结果。</div>
+    </section>
+  </main>
+  <footer><div class="wrap">RoadVision Front Camera Calibration · 自动俯视变换审查</div></footer>
+</body>
+</html>

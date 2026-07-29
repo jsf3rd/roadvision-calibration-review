@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Automatic BEV Transformation Review and Change Request</title>
+  <style>
+    :root{--navy:#10243e;--blue:#1769aa;--cyan:#00a6c7;--ink:#202a39;--muted:#657184;--line:#d9e1eb;--paper:#f4f7fb;--white:#fff;--green:#14875d;--green-bg:#eaf8f2;--red:#c63f4b;--red-bg:#fff0f1;--amber:#a66500;--amber-bg:#fff7df}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:var(--paper);font-family:Inter,Segoe UI,Arial,sans-serif;line-height:1.65}.wrap{width:min(1140px,calc(100% - 40px));margin:0 auto}
+    header{padding:62px 0 68px;color:white;background:radial-gradient(circle at 80% 15%,rgba(0,166,199,.3),transparent 31%),linear-gradient(130deg,#09192d,#154d79)}
+    .kicker{color:#79dff0;font-size:13px;font-weight:800;letter-spacing:.14em}h1{max-width:900px;margin:9px 0 18px;font-size:clamp(34px,5.5vw,58px);line-height:1.14}.subtitle{max-width:860px;margin:0;color:#d8e8f6;font-size:19px}.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}.meta span{padding:5px 10px;border:1px solid rgba(255,255,255,.25);border-radius:999px;color:#dcecff;font-size:12px}
+    main{padding:52px 0 80px}section{margin:0 0 56px}h2{margin:0 0 20px;color:var(--navy);font-size:28px;line-height:1.3}h3{margin:0 0 8px;color:var(--navy)}p{margin:7px 0}code{color:#075985;font-family:Consolas,monospace}
+    .card{padding:22px;border:1px solid var(--line);border-radius:16px;background:var(--white);box-shadow:0 8px 26px rgba(24,51,81,.055)}
+    .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;counter-reset:item}.summary .card{position:relative;min-height:215px;padding-top:54px}.summary .card:before{counter-increment:item;content:counter(item);position:absolute;top:18px;left:20px;width:28px;height:28px;display:grid;place-items:center;border-radius:9px;color:white;background:var(--blue);font-weight:800}.summary strong{display:block;margin-bottom:8px;color:var(--navy);font-size:17px;line-height:1.35}
+    .compare{display:grid;grid-template-columns:1fr 1fr;gap:20px}.status{display:inline-block;margin-bottom:12px;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:800}.as-is{color:var(--green);background:var(--green-bg)}.current{color:var(--red);background:var(--red-bg)}
+    pre{margin:15px 0 0;padding:18px;overflow:auto;border-radius:12px;color:#dce9f9;background:#101d30;font:14px/1.7 Consolas,monospace}.zero{color:#67e8f9;font-weight:800}.nonzero{color:#fda4af;font-weight:800}
+    .diagram{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:12px}.step{min-height:135px;display:flex;flex-direction:column;justify-content:center;text-align:center}.arrow{color:var(--blue);font-size:30px;font-weight:900}
+    .evidence{display:grid;grid-template-columns:1fr 1fr;gap:20px}figure{margin:0;overflow:hidden}figure img{display:block;width:100%;background:#111827}figcaption{padding:14px 18px 18px;color:var(--muted);background:white;font-size:14px}
+    .callout{padding:20px 22px;border-left:5px solid var(--blue);border-radius:9px;background:#eaf4fc}.problem{border-left-color:var(--red);background:var(--red-bg)}.decision{border-left-color:#e89b14;background:var(--amber-bg)}
+    ul{margin:9px 0 0;padding-left:22px}li+li{margin-top:7px}table{width:100%;border-collapse:collapse;border-radius:14px;overflow:hidden;background:white}th,td{padding:13px 15px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--navy);background:#e8f0fa}.yes{color:var(--green);font-weight:800}
+    .recommend{padding:28px;border:2px solid #1e81ba;border-radius:18px;background:linear-gradient(135deg,#fff,#eef9fc)}.recommend h3{font-size:23px}.acceptance{display:grid;gap:12px}.acceptance div{position:relative;padding:16px 18px 16px 52px;border:1px solid var(--line);border-radius:12px;background:white}.acceptance div:before{content:"✓";position:absolute;left:17px;top:15px;width:25px;height:25px;display:grid;place-items:center;border-radius:50%;color:white;background:var(--green);font-weight:900}
+    footer{padding:28px 0;color:#93a3b8;background:#0e1c2f;font-size:13px}.lang{position:fixed;right:18px;top:18px;z-index:3;padding:8px 12px;border-radius:999px;color:white;background:rgba(10,25,45,.82);text-decoration:none;font-weight:700}
+    @media(max-width:900px){.summary{grid-template-columns:1fr 1fr}.compare,.evidence{grid-template-columns:1fr}.diagram{grid-template-columns:1fr}.arrow{transform:rotate(90deg);justify-self:center}}@media(max-width:560px){.summary{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <a class="lang" href="index.html">Languages</a>
+  <header><div class="wrap">
+    <div class="kicker">ROADVISION CAMERA CALIBRATION</div>
+    <h1>Automatic BEV Transformation<br>Review and Change Request</h1>
+    <p class="subtitle">This document compares the existing four-parameter perspective transformation with the current automatic calibration method and proposes constraints and UI changes to prevent unintended vehicle rotation.</p>
+    <div class="meta"><span>Scope: Front Camera BEV</span><span>Output: 1224 × 1024</span><span>Key issue: 6-parameter vs 8-parameter</span></div>
+  </div></header>
+
+  <main class="wrap">
+    <section><h2>1. Executive Summary</h2><div class="summary">
+      <div class="card"><strong>Four existing inputs</strong><p>The current model uses <code>yaw, pitch, width, length</code>.</p></div>
+      <div class="card"><strong>Six calculated matrix values</strong><p>The horizontal trapezoid constraint makes <code>h21</code> and <code>h31</code> zero.</p></div>
+      <div class="card"><strong>Eight values in the automatic matrix</strong><p>The four user-selected points form an unrestricted quadrilateral.</p></div>
+      <div class="card"><strong>The existing matrix structure must remain</strong><p>The top and bottom edges must stay parallel to the image x-axis.</p></div>
+      <div class="card"><strong>A constrained trapezoid UI is required</strong><p>The UI must preserve the horizontal constraint while points are edited.</p></div>
+    </div></section>
+
+    <section><h2>2. Calibration Standard</h2><div class="evidence">
+      <figure class="card"><img src="calibration_alignment_standard.png" alt="Vehicle and calibration board alignment standard"><figcaption>The vehicle and calibration board must be parallel, and their centerlines must coincide.</figcaption></figure>
+      <div class="card"><h3>Required BEV axes</h3><pre>Vehicle heading axis
+        =
+Board longitudinal axis
+        =
+BEV vertical axis</pre>
+        <p>When the physical setup follows the standard, the vehicle must remain vertically aligned in the transformed result.</p>
+        <ul><li>Board: 2 m × 2 m</li><li>Camera-to-board distance: 5 m</li><li>Transformed board: 240 px × 240 px</li><li>Board position: lower center of the ROI</li></ul>
+      </div>
+    </div></section>
+
+    <section><h2>3. Existing Perspective Transformation</h2>
+      <div class="diagram">
+        <div class="card step"><h3>Four inputs</h3><p><code>yaw</code><br><code>pitch</code><br><code>width</code><br><code>length</code></p></div><div class="arrow">→</div>
+        <div class="card step"><h3>Horizontal trapezoid</h3><p>Equal y values on the top edge<br>Equal y values on the bottom edge</p></div><div class="arrow">→</div>
+        <div class="card step"><h3>Rectangular BEV</h3><p>Compatible with the existing inverse calculation and parameter model</p></div>
+      </div>
+      <div class="compare" style="margin-top:20px">
+        <div class="card"><span class="status as-is">Existing matrix structure</span><pre>H =
+[ h11  h12  h13 ]
+[  <span class="zero">0</span>   h22  h23 ]
+[  <span class="zero">0</span>   h32   1  ]</pre></div>
+        <div class="card"><h3>Benefits of the four-parameter model</h3><ul>
+          <li>Prevents unintended rotation in the output image.</li>
+          <li>The meanings of <code>yaw</code>, <code>pitch</code>, <code>width</code>, and <code>length</code> are intuitive.</li>
+          <li>Compatible with existing storage, inverse calculations, and operations.</li>
+          <li>Easy for field operators to inspect and fine-tune.</li>
+        </ul></div>
+      </div>
+    </section>
+
+    <section><h2>4. Difference in the Current Automatic Transformation</h2>
+      <figure class="card"><img src="auto_calibration_test.png" alt="Automatic calibration test screen"><figcaption>The user selects four board corners in the raw image. In the BEV result on the right, the vehicle appears rotated to the left.</figcaption></figure>
+      <div class="compare" style="margin-top:20px">
+        <div class="card"><span class="status current">Current automatic matrix</span><pre>H =
+[-0.357376940  -0.905386407  1007.356816135]
+[<span class="nonzero">-0.020639505</span>  -1.892168148  1784.690500771]
+[<span class="nonzero">-0.000068654</span>  -0.001458344     1.000000000]</pre></div>
+        <div class="card"><h3>Cause</h3><p>The current program treats the four selected points as an unrestricted quadrilateral. Because the y values on the top and bottom edges can differ, a full eight-degree-of-freedom homography is generated.</p><p><code>h21</code> and <code>h31</code> are nonzero, allowing small point-selection errors and quadrilateral tilt to affect the rotation of the entire result.</p></div>
+      </div>
+      <div class="callout problem" style="margin-top:18px"><strong>Assessment:</strong> Even though the vehicle and board were physically aligned according to the calibration standard, the vehicle centerline does not align with the BEV vertical axis. The result is therefore incompatible with the required existing transformation behavior.</div>
+    </section>
+
+    <section><h2>5. Required Automatic Transformation</h2>
+      <div class="recommend"><h3>The transformation region must remain a horizontal trapezoid even when the user selects four points.</h3><p>The two top points must have the same y value, and the two bottom points must also have the same y value. The transformation matrix must then be recalculated from the corrected points.</p></div>
+      <div class="compare" style="margin-top:20px">
+        <div class="card"><span class="status as-is">Required matrix</span><pre>[ h11  h12  h13 ]
+[  <span class="zero">0</span>   h22  h23 ]
+[  <span class="zero">0</span>   h32   1  ]</pre></div>
+        <div class="card"><h3>Validation</h3><pre>abs(h21) &lt; epsilon
+abs(h31) &lt; epsilon</pre><p>Use a numerical tolerance. Do not calculate a general matrix and forcibly overwrite the two values with zero; correct the input trapezoid first and then recalculate the matrix.</p></div>
+      </div>
+    </section>
+
+    <section><h2>6. UI Options for Preserving the Trapezoid</h2>
+      <table><thead><tr><th>Option</th><th>Behavior</th><th>Benefit</th><th>Consideration</th></tr></thead><tbody>
+        <tr><td><strong>A. Coupled point movement</strong></td><td>When one top point moves vertically, the y value of the opposite top point moves with it. Apply the same rule to the bottom pair.</td><td class="yes">Retains the existing four-point UI.</td><td>The coupled behavior must be visually clear.</td></tr>
+        <tr><td><strong>B. Automatic correction after selection</strong></td><td>After four free points are selected, average the y values of each top and bottom pair to create a horizontal trapezoid.</td><td class="yes">Absorbs initial click errors.</td><td>Show the original points separately from the corrected points.</td></tr>
+      </tbody></table>
+      <div class="callout decision" style="margin-top:18px"><strong>Recommendation:</strong> Use Option B for the initial four-point selection and Option A for subsequent editing. Display the actual transformation trapezoid with a strong line and the original points as secondary references.</div>
+    </section>
+
+    <section><h2>7. Change Requirements</h2><div class="acceptance">
+      <div>The two top points must share one y coordinate, and the two bottom points must share one y coordinate.</div>
+      <div>The horizontal trapezoid constraint must remain active after every point edit.</div>
+      <div>The calculated matrix must satisfy <code>h21≈0</code> and <code>h31≈0</code>.</div>
+      <div>The existing inverse calculation must generate <code>yaw</code>, <code>pitch</code>, <code>width</code>, and <code>length</code>.</div>
+      <div>The vehicle centerline, board longitudinal axis, and BEV vertical axis must coincide.</div>
+      <div>The board must appear as a 240 px × 240 px square at the lower center of the ROI.</div>
+    </div></section>
+
+    <section><h2>8. Our Position and Proposal</h2>
+      <div class="callout"><strong>We agree that a general 3×3 homography has eight degrees of freedom and cannot be converted exactly into the existing four parameters.</strong> However, we do not believe the solution is to remove the four parameters and require the existing software to accept a raw 3×3 matrix.</div>
+      <div class="compare" style="margin-top:20px">
+        <div class="card"><h3>Why the four parameters should remain</h3><ul>
+          <li>They are intuitive and meaningful to field operators.</li>
+          <li>Operators can identify abnormal values and fine-tune calibration.</li>
+          <li>They preserve compatibility with existing equipment, configuration files, inverse calculations, and operating procedures.</li>
+          <li>They represent the physical rule that the vehicle and board are parallel.</li>
+          <li>They restrict unnecessary rotational freedom and prevent vehicle rotation distortion.</li>
+        </ul></div>
+        <div class="card"><h3>Concerns with direct matrix input</h3><ul>
+          <li>Field operators cannot easily interpret individual values or determine valid ranges.</li>
+          <li>Corner-selection errors and tilt can affect the full transformed image.</li>
+          <li>A visibly rotated vehicle may still be represented by a mathematically valid matrix.</li>
+          <li>The existing software and data structures would need to change.</li>
+          <li>Calibration values become difficult to compare and manage across vehicles.</li>
+        </ul></div>
+      </div>
+      <div class="recommend" style="margin-top:20px"><h3>Proposal</h3><p>The mismatch is caused not by the four-parameter model itself, but by the automatic calibration program generating an unrestricted eight-degree-of-freedom matrix.</p><p>Instead of changing the existing software to accept a full matrix, constrain the selected four points to a horizontal trapezoid and generate a matrix and four parameters that are compatible with the existing model.</p><pre>Do not adapt the existing system to an 8-DOF matrix.
+Adapt the automatic calibration result to the existing 4-parameter model.</pre></div>
+      <div class="callout decision" style="margin-top:20px"><strong>Final request:</strong> Do not calculate an 8-DOF matrix first and then approximate four parameters or require manual readjustment. Apply the existing model constraints from the initial four-point selection and directly generate a compatible result.</div>
+    </section>
+  </main>
+  <footer><div class="wrap">RoadVision Front Camera Calibration · Automatic BEV Transformation Review</div></footer>
+</body>
+</html>
